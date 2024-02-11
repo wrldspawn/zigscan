@@ -97,7 +97,7 @@ fn scanRawMaskMatchUnaligned(bytes: []const u8, comptime mask_match: anytype) ?u
     const diff = base_ptr - backward;
 
     return switch (diff) {
-        inline 1...(@alignOf(vecpattern.VecType) - 1) => |off| {
+        inline 1...(@alignOf(vecpattern.VecType) - 1) => |off| blk: {
             // Start scanning at `backward` but insert null masks according to
             // how many bytes we want to skip from the start. Only do this for the first vector word.
             const new_mask = ([_]u8{0x00} ** off) ++ mask_match.mask;
@@ -107,16 +107,19 @@ fn scanRawMaskMatchUnaligned(bytes: []const u8, comptime mask_match: anytype) ?u
                 true,
                 new_mask.len,
                 maskgen.MaskAndMatch(new_mask.len){ .mask = new_mask, .match = new_match },
-            )) |result| return result;
+            )) |result| break :blk result;
 
             // If the pattern did not start within the first vector word, we need to check subsequent (aligned) vector words.
+            const off_to_next_word = @sizeOf(vecpattern.VecType) - off;
+            if (bytes.len <= off_to_next_word) break :blk null;
+
             const result = vecpattern.scanMaskAndMatch(
-                @alignCast(bytes[@sizeOf(vecpattern.VecType) - off ..]),
+                @alignCast(bytes[off_to_next_word..]),
                 false,
                 mask_match.mask.len,
                 mask_match,
-            ) orelse return null;
-            return result + (@sizeOf(vecpattern.VecType) - off);
+            ) orelse break :blk null;
+            break :blk result + off_to_next_word;
         },
         0 => scanRawMaskMatch(@alignCast(bytes), mask_match),
         else => unreachable,
@@ -130,9 +133,10 @@ fn scanRawMaskMatchUnalignedSmall(bytes: []const u8, comptime mask_match: anytyp
 
     if (diff > 0) {
         // Scan within unaligned bytes
-        if (sigscan.scanMaskAndMatchUntil(bytes, diff, mask_match.mask.len, mask_match)) |result| return result;
+        if (sigscan.scanMaskAndMatch(bytes[0..@min(bytes.len, mask_match.mask.len + diff)], mask_match.mask.len, mask_match)) |result| return result;
 
         // Scan the rest
+        if (bytes.len <= diff) return null;
         const result = vecpattern.scanMaskAndMatch(
             @alignCast(bytes[diff..]),
             false,
@@ -155,6 +159,17 @@ test "unaligned sigscans" {
         try testScanMaskMatch(bytes[offs..], scanMaskMatchUnaligned);
         try testScanMaskMatch(bytes[offs..], scanMaskMatchUnalignedSmall);
     }
+}
+
+test "zero" {
+    const buf align(@alignOf(vecpattern.VecType)) = std.mem.zeroes([@sizeOf(vecpattern.VecType)]u8);
+    for (0..@sizeOf(vecpattern.VecType)) |offs| {
+        try std.testing.expectEqual(null, scanIdaUnaligned(buf[offs..][0..0], "00"));
+        try std.testing.expectEqual(null, scanIdaUnalignedSmall(buf[offs..][0..0], "00"));
+    }
+
+    try std.testing.expectEqual(0, scanIda(buf[0..], "00 " ** @sizeOf(vecpattern.VecType)));
+    try std.testing.expectEqual(null, scanIda(buf[0 .. buf.len / 2], "00 " ** @sizeOf(vecpattern.VecType)));
 }
 
 fn testScanIda(bytes: []const u8, comptime scanner: anytype) !void {

@@ -32,17 +32,8 @@ pub inline fn scanMaskAndMatch(
     comptime num_mask_bytes: usize,
     comptime mask_match: maskgen.MaskAndMatch(num_mask_bytes),
 ) ?usize {
-    return scanMaskAndMatchUntil(bytes, null, num_mask_bytes, mask_match);
-}
-
-/// `scanMaskAndMatch`, but do not return indices above or at `until`.
-pub fn scanMaskAndMatchUntil(
-    bytes: []const u8,
-    until: ?usize,
-    comptime num_mask_bytes: usize,
-    comptime mask_match: maskgen.MaskAndMatch(num_mask_bytes),
-) ?usize {
     comptime {
+        std.debug.assert(num_mask_bytes > 0);
         if (mask_match.mask[0] == 0x00) {
             @compileError("Invalid pattern begins with null mask (just slice into `bytes`)");
         }
@@ -52,11 +43,11 @@ pub fn scanMaskAndMatchUntil(
         }
     }
 
+    if (bytes.len < num_mask_bytes) return null;
     const max_len = (bytes.len - (num_mask_bytes - 1));
-    const end = if (until) |val| @min(val, max_len) else max_len;
     var i: usize = 0;
 
-    loop: while (i < end) : (i += 1) {
+    loop: while (i < max_len) : (i += 1) {
         // Look through pattern bytes starting here; if a mismatch occurs we iterate again,
         // or if all bytes pass we return the initial starting index.
         inline for (mask_match.mask[0..], mask_match.match[0..], 0..) |mask, match, j| {

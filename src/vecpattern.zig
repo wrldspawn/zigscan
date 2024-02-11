@@ -46,6 +46,7 @@ pub fn scanMaskAndMatch(
     };
 
     comptime {
+        std.debug.assert(num_mask_bytes > 0);
         if (S.mask[0] == 0x00 and !only_first) {
             @compileError("Invalid multi-word pattern begins with null mask (use slicing and scanUnaligned instead)");
         }
