@@ -57,29 +57,29 @@ pub inline fn scanIdaUnalignedSmall(bytes: []const u8, comptime pattern: []const
 
 /// `mask` and `match` are human-readable strings containing a bitmask (e.g. "FF FF ff 3 0") and
 /// a similarly-formatted match.
-pub inline fn scanMaskMatch(
+pub inline fn scanArb(
     bytes: []align(@alignOf(vecpattern.VecType)) const u8,
-    comptime mask: []const u8,
     comptime match: []const u8,
+    comptime mask: []const u8,
 ) ?usize {
     return scanRawMaskMatch(bytes, comptime maskgen.fromMaskAndMatch(mask, match));
 }
 
-/// `scanMaskMatch`, but `bytes` is potentially unaligned.
-pub inline fn scanMaskMatchUnaligned(
+/// `scanArb`, but `bytes` is potentially unaligned.
+pub inline fn scanArbUnaligned(
     bytes: []const u8,
-    comptime mask: []const u8,
     comptime match: []const u8,
+    comptime mask: []const u8,
 ) ?usize {
     return scanRawMaskMatchUnaligned(bytes, comptime maskgen.fromMaskAndMatch(mask, match));
 }
 
-/// `scanMaskMatchUnaligned`, but less codegen. Has a performance penalty for large patterns that
+/// `scanArbUnaligned`, but less codegen. Has a performance penalty for large patterns that
 /// start at the beginning of the byte sequence. Only use this to reduce binary sizes.
-pub inline fn scanMaskMatchUnalignedSmall(
+pub inline fn scanArbUnalignedSmall(
     bytes: []const u8,
-    comptime mask: []const u8,
     comptime match: []const u8,
+    comptime mask: []const u8,
 ) ?usize {
     return scanRawMaskMatchUnalignedSmall(bytes, comptime maskgen.fromMaskAndMatch(mask, match));
 }
@@ -156,8 +156,8 @@ test "unaligned sigscans" {
         @memcpy(bytes[offs..][0..template.len], template[0..]);
         try testScanIda(bytes[offs..], scanIdaUnaligned);
         try testScanIda(bytes[offs..], scanIdaUnalignedSmall);
-        try testScanMaskMatch(bytes[offs..], scanMaskMatchUnaligned);
-        try testScanMaskMatch(bytes[offs..], scanMaskMatchUnalignedSmall);
+        try testScanMaskMatch(bytes[offs..], scanArbUnaligned);
+        try testScanMaskMatch(bytes[offs..], scanArbUnalignedSmall);
     }
 }
 
@@ -166,6 +166,9 @@ test "zero" {
     for (0..@sizeOf(vecpattern.VecType)) |offs| {
         try std.testing.expectEqual(null, scanIdaUnaligned(buf[offs..][0..0], "00"));
         try std.testing.expectEqual(null, scanIdaUnalignedSmall(buf[offs..][0..0], "00"));
+
+        try std.testing.expectEqual(null, scanIdaUnaligned(buf[offs..][0..1], "00 00"));
+        try std.testing.expectEqual(null, scanIdaUnalignedSmall(buf[offs..][0..1], "00 00"));
     }
 
     try std.testing.expectEqual(0, scanIda(buf[0..], "00 " ** @sizeOf(vecpattern.VecType)));
@@ -181,9 +184,10 @@ fn testScanIda(bytes: []const u8, comptime scanner: anytype) !void {
 }
 
 fn testScanMaskMatch(bytes: []const u8, comptime scanner: anytype) !void {
-    try std.testing.expectEqual(0, scanner(bytes, "FF", "13"));
-    try std.testing.expectEqual(0, scanner(bytes, "FF FF FF", "13 37 13"));
-    try std.testing.expectEqual(8, scanner(bytes, "FF", "AA"));
-    try std.testing.expectEqual(4, scanner(bytes, "FF FF FF 00 FF", "12 34 56 00 AA"));
-    try std.testing.expectEqual(2, scanner(bytes, "FF 00 FF", "13 00 12"));
+    try std.testing.expectEqual(0, scanner(bytes, "13", "FF"));
+    try std.testing.expectEqual(0, scanner(bytes, "13 37 13", "FF FF FF"));
+    try std.testing.expectEqual(8, scanner(bytes, "AA", "FF"));
+    try std.testing.expectEqual(4, scanner(bytes, "12 34 56 00 AA", "FF FF FF 00 FF"));
+    try std.testing.expectEqual(2, scanner(bytes, "13 00 12", "FF 00 FF"));
+    try std.testing.expectEqual(7, scanner(bytes, "08", "08"));
 }

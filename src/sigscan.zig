@@ -25,7 +25,6 @@
 // For more information, please refer to <https://unlicense.org>
 const std = @import("std");
 const maskgen = @import("maskgen.zig");
-const expect = std.testing.expect;
 
 pub inline fn scanMaskAndMatch(
     bytes: []const u8,

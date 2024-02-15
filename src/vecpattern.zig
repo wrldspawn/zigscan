@@ -93,15 +93,19 @@ pub fn scanRaw(
     mask_bytes: *align(@alignOf(VecType)) const [mask_len]u8,
     match_bytes: *align(@alignOf(VecType)) const [mask_len]u8,
 ) ?usize {
-    comptime std.debug.assert(mask_len > 0 and std.mem.isAligned(mask_len, @sizeOf(VecType)) and actual_mask_len <= mask_len);
-    if (actual_mask_len == 0) return null;
+    comptime std.debug.assert(mask_len > 0 and actual_mask_len > 0 and std.mem.isAligned(mask_len, @sizeOf(VecType)) and actual_mask_len <= mask_len);
+
+    // This behaviour is equivalent, but we can include an optimization here.
+    // It is equivalent because scanMaskAndMatch makes sure that the pattern does not
+    // go outside of the memory specified by `bytes`.
+    if (bytes.len < actual_mask_len) return null;
 
     @setRuntimeSafety(false);
     var i: usize = 0;
 
     const first_mask = @as(*const VecType, @ptrCast(mask_bytes)).*;
     const first_match = @as(*const VecType, @ptrCast(match_bytes)).*;
-    const end: usize = if (only_first) @sizeOf(VecType) else bytes.len;
+    const end: usize = if (only_first) @min(@sizeOf(VecType), bytes.len) else bytes.len;
 
     outer: while (i < end) : (i += @sizeOf(VecType)) {
         // This read is out-of-bounds but can't cause a page fault because of alignment.
