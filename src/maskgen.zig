@@ -135,6 +135,6 @@ fn countPatternBytes(comptime pattern: []const u8) usize {
         if (token.len > 2) @compileLog("Invalid pattern token; must be 1 or 2 chars wide.", pattern, token);
     }
 
-    comptime std.debug.assert(idx > 0);
+    comptime std.debug.assert(idx > 0); // no pattern?
     return idx;
 }

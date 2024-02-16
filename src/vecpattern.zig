@@ -31,7 +31,6 @@ comptime {
     std.debug.assert(@alignOf(VecType) == @sizeOf(VecType));
 }
 
-/// Where raw_mask and raw_match are same-lengthed slices containing the raw match, mask bytes.
 /// If `only_first` is true, only the first word is checked. This is used for quickly
 /// filtering the unaligned portion of a byte array.
 pub fn scanMaskAndMatch(
