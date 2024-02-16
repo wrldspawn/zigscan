@@ -1,11 +1,5 @@
 .{
     .name = "zigscan",
     .version = "1.0.0",
-    .paths = .{
-        "build.zig.zon",
-        "build.zig",
-        "LICENSE",
-        ".gitignore",
-        "src",
-    },
+    .paths = .{""},
 }
